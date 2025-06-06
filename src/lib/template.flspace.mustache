@@ -1,0 +1,28 @@
+DisplayName = "{{title}}";
+BlackPoint = {{blackPoint}};
+WhitePoint = {{whitePoint}};
+
+to_lin = upto("@@");
+vec4 convertToLinear(vec4 val)
+{
+    return val;	
+}
+@@
+
+from_lin = upto("@@");
+vec4 convertFromLinear(vec4 val, int clip)
+{
+    return val;
+}
+@@
+
+
+mat = [array
+{{matrix}}
+];
+
+type = "scene";
+range = "full";
+
+DefaultHiddenUses = [set "Cursor","GradeResult","Render","Working",];
+ColourMetadata = [struct Primaries= "{{title}}" , TransferFunction="{{transferFunctionName}}"];
