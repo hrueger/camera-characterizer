@@ -1,10 +1,9 @@
 <script lang="ts">
     import { drawToCanvas } from "$lib/canvas";
     import LibRaw from "libraw-wasm";
-    import type { LibRawRawImageData, LibRawFullMetadata } from "libraw-wasm/dist/types.d.ts";
+    import type { LibRawRawImageData } from "libraw-wasm/dist/types.d.ts";
     import { onMount } from "svelte";
     import { Matrix, pseudoInverse } from "ml-matrix";
-    const imageFile = "/test.DNG";
     import Mustache from "mustache";
     import flspaceTemplate from "$lib/template.flspace.mustache?raw";
 
@@ -16,10 +15,27 @@
         GRBG: [1, 2, 0, 1],
     } as const satisfies Record<string, BayerOrder>;
 
-    onMount(async () => {
+    let imageFile: File | null = null;
+
+    onMount(() => {
+        const fileInput = document.getElementById("fileInput") as HTMLInputElement;
+        fileInput.addEventListener("change", async (event) => {
+            const files = fileInput.files;
+            if (!files || files.length === 0) return;
+            imageFile = files[0];
+            working = true;
+            await processImageFile(imageFile);
+            working = false;
+        });
+    });
+
+    let working = false;
+    let renderedTemplate = "";
+
+    async function processImageFile(file: File) {
         const rotate: 0 | 180 = 180;
 
-        const arrayBuffer = await fetch(imageFile).then((res) => res.arrayBuffer());
+        const arrayBuffer = await file.arrayBuffer();
         console.log("Fetched image file:", arrayBuffer);
         // Instantiate LibRaw
         const raw = new LibRaw();
@@ -264,7 +280,7 @@
         const M_Filmlight = M_Normalized.transpose();
         console.log("M_Filmlight:", M_Filmlight.toString());
 
-        const template = Mustache.render(flspaceTemplate, {
+        renderedTemplate = Mustache.render(flspaceTemplate, {
             title: "Sigma FP Kühlschrank",
             blackPoint: 0,
             whitePoint: 256,
@@ -274,17 +290,7 @@
                 .join(",\n"),
         });
 
-        console.log("Template rendered:", template);
-
-        if (location.search.includes("download")) {
-            const blob = new Blob([template], { type: "text/plain" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "camera-characterization.flspace";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+        console.log("Template rendered:", renderedTemplate);
 
         console.log(
             "Reference Test-Matrix\n",
@@ -300,7 +306,7 @@
         drawCCCanvas("ccMeasured", ccMeasured);
         drawCCCanvas("ccReference", ccRef);
         drawCCCanvas("ccResult", ccMeasured.mmul(M));
-    });
+    }
 
     function drawRectangle(ctx: CanvasRenderingContext2D, topLeft: [number, number], bottomRight: [number, number]) {
         ctx.strokeStyle = "red";
@@ -502,8 +508,27 @@
             }
         }
     }
+
+    function downloadFLSpace() {
+        if (!renderedTemplate) {
+            alert("No .flspace file generated yet. Please process an image first.");
+            return;
+        }
+        const blob = new Blob([renderedTemplate], { type: "text/plain" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "camera-characterization.flspace";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 </script>
 
+<input id="fileInput" type="file" accept=".dng,.DNG,.raw,.RAW,.nef,.NEF,.cr2,.CR2,.arw,.ARW,.tiff,.TIFF,.tif,.TIF" /><br />
+{#if working}
+    <p>Processing image...</p>
+{/if}
+<button on:click={downloadFLSpace}>Download .flspace File</button><br />
 <canvas id="imageDebayered" on:click={logCanvasPixelPosition} /><br />
 Debug:<br />
 <canvas id="measuredDebug" /><br />
