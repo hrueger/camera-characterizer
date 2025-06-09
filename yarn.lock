@@ -426,14 +426,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sveltejs/adapter-auto@npm:^3.0.0":
-  version: 3.3.1
-  resolution: "@sveltejs/adapter-auto@npm:3.3.1"
-  dependencies:
-    import-meta-resolve: "npm:^4.1.0"
+"@sveltejs/adapter-static@npm:^3.0.8":
+  version: 3.0.8
+  resolution: "@sveltejs/adapter-static@npm:3.0.8"
   peerDependencies:
     "@sveltejs/kit": ^2.0.0
-  checksum: 10c0/c7d75e82331fd26fb6ff312b242c248da9508e4388281c20b13359b20577fc9dc3e9151ab176bbbd55f3367f90a61552e508e69d203c3a2f97284f787fc0e3e5
+  checksum: 10c0/0ae958463d074c49b733059f53b685ee26e0debe9207aad5d77ea1b651a1efc743647f9c0cf78d72ae0243e23ece4b620b0600f17ec83e732791a265fea6df4f
   languageName: node
   linkType: hard
 
@@ -679,7 +677,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "camera-characterizer@workspace:."
   dependencies:
-    "@sveltejs/adapter-auto": "npm:^3.0.0"
+    "@sveltejs/adapter-static": "npm:^3.0.8"
     "@sveltejs/kit": "npm:^2.0.0"
     "@sveltejs/vite-plugin-svelte": "npm:^3.0.0"
     "@types/mustache": "npm:^4.2.6"
@@ -1119,13 +1117,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"import-meta-resolve@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "import-meta-resolve@npm:4.1.0"
-  checksum: 10c0/42f3284b0460635ddf105c4ad99c6716099c3ce76702602290ad5cbbcd295700cbc04e4bdf47bacf9e3f1a4cec2e1ff887dabc20458bef398f9de22ddff45ef5
-  languageName: node
-  linkType: hard
-
 "imurmurhash@npm:^0.1.4":
   version: 0.1.4
   resolution: "imurmurhash@npm:0.1.4"
@@ -1258,8 +1249,8 @@ __metadata:
 
 "libraw-wasm@file:../LibRaw-Wasm::locator=camera-characterizer%40workspace%3A.":
   version: 1.1.2
-  resolution: "libraw-wasm@file:../LibRaw-Wasm#../LibRaw-Wasm::hash=222718&locator=camera-characterizer%40workspace%3A."
-  checksum: 10c0/7062e533de5413056297803a374c3f5f80214fc95f3a03f5f7dc0bd4b996ae76f1243ea584f725b1db2909393725b196fa281f6a48b39012bafbf816e4ab61fd
+  resolution: "libraw-wasm@file:../LibRaw-Wasm#../LibRaw-Wasm::hash=3c672b&locator=camera-characterizer%40workspace%3A."
+  checksum: 10c0/20b44d9e85fe94e32022b12e99687c643c296d70a86addf7a12c68e0a44e2e16ff32ec57b5cfb30fdfb36ccb825d86d6478339add0a0c8d3689eb8ad7e77346f
   languageName: node
   linkType: hard
 
