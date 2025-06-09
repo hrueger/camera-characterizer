@@ -13,7 +13,6 @@
 
         const arrayBuffer = await fetch(imageFile).then((res) => res.arrayBuffer());
         console.log("Fetched image file:", arrayBuffer);
-        const output = document.getElementById("output")!;
         // Instantiate LibRaw
         const raw = new LibRaw();
         // Open (decode) the RAW file
@@ -26,7 +25,6 @@
         // Fetch metadata
         const meta = await raw.metadata(true);
         console.log("Metadata:", meta.color_data);
-        output.innerText = JSON.stringify(meta, null, 4);
 
         // Fetch the decoded image data (RGB pixels)
         const imageData = await raw.imageData();
@@ -36,7 +34,7 @@
         if (rotate == 180) {
             rawImageData.data = new Uint16Array(rawImageData.data.buffer).reverse();
         }
-        const { width, height, rgb8 } = await debayer(rawImageData, meta, output);
+        const { width, height, rgb8 } = await debayer(rawImageData, meta);
         // Draw on canvas (raw pipeline)
         const canvasRaw = document.getElementById("imageDebayered") as HTMLCanvasElement;
         canvasRaw.width = width;
@@ -117,7 +115,6 @@
             };
         });
         console.log("Median pixel values:", meanValues);
-        output.innerText += `\nMedian pixel values: ${JSON.stringify(meanValues)}`;
 
         // draw the squares in the color of the median pixel values
         for (let i = 0; i < squarePositions.length; i++) {
@@ -167,12 +164,10 @@
         const ccMeasured = new Matrix(meanValues.map((v) => [v.r / 255, v.g / 255, v.b / 255]));
         const ccRef = new Matrix(referenceRGB_linear);
         console.log("Measured RGB matrix (scaled):", ccMeasured.toString());
-        output.innerText += `\nMeasured RGB matrix (scaled): ${ccMeasured.toString()}`;
 
         // Use pseudoInverse(ccMeasured).mmul(ccRef) to match MATLAB
         const M = pseudoInverse(ccMeasured).mmul(ccRef);
         console.log("Color correction matrix M:", M.toString());
-        output.innerText += `\nColor correction matrix M: ${M.toString()}`;
 
         // sRGB to XYZ matrix
         const sRGB2XYZ = [
@@ -184,7 +179,6 @@
 
         // Calculate M_Sigma_to_XYZ
         const M_Sigma_to_XYZ = M.mmul(sRGB2XYZ_Matrix);
-        output.innerText += `\nM_Sigma_to_XYZ: ${M_Sigma_to_XYZ.toString()}`;
         console.log("M_Sigma_to_XYZ:", M_Sigma_to_XYZ.toString());
 
         // Normalize columns
@@ -195,12 +189,10 @@
                 M_Normalized.set(row, col, M_Sigma_to_XYZ.get(row, col) / colSums[col]);
             }
         }
-        output.innerText += `\nM_Normalized: ${M_Normalized.toString()}`;
         console.log("M_Normalized:", M_Normalized.toString());
 
         // Filmlight matrix is the transpose
         const M_Filmlight = M_Normalized.transpose();
-        output.innerText += `\nM_Filmlight: ${M_Filmlight.toString()}`;
         console.log("M_Filmlight:", M_Filmlight.toString());
 
         const template = Mustache.render(flspaceTemplate, {
@@ -242,7 +234,7 @@
         console.log(`Canvas pixel position: (${x}, ${y})`);
     }
 
-    function debayer(rawImageData: LibRawRawImageData, meta: LibRawFullMetadata, output: HTMLElement) {
+    function debayer(rawImageData: LibRawRawImageData, meta: LibRawFullMetadata) {
         console.log("Raw image data:", rawImageData);
 
         // --- MATLAB-like RAW processing ---
@@ -271,7 +263,6 @@
         }
         const { black, white } = getBlackWhiteLevels(meta);
         console.log("Black/White levels:", black, white);
-        output.innerText += `\nBlack/White levels: ${black}, ${white}`;
 
         // 2. Get white balance multipliers
         let wb = [1, 1, 1, 1];
@@ -286,7 +277,6 @@
         }
         if (wb[1] !== 0) wb = wb.map((v) => v / wb[1]);
         console.log("White balance multipliers:", wb);
-        output.innerText += `\nWhite balance multipliers: ${JSON.stringify(wb)}`;
 
         // 3. Normalize and white-balance the raw Bayer data
         // Assume RGGB Bayer pattern (can be improved for other patterns)
@@ -379,16 +369,9 @@
     }
 </script>
 
-<div id="output"></div>
 <canvas id="imageDebayered" on:click={logCanvasPixelPosition} />
 
 <style>
-    #output {
-        white-space: pre-wrap;
-        font-family: monospace;
-        margin-bottom: 20px;
-    }
-
     canvas {
         border: 1px solid black;
         max-height: 100vh;
