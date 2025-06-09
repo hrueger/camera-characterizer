@@ -13,4 +13,7 @@ export default defineConfig({
             allow: ["../LibRaw-Wasm/dist/"],
         },
     },
+    worker: {
+        format: "es",
+    },
 });
