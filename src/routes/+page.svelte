@@ -8,6 +8,14 @@
     import Mustache from "mustache";
     import flspaceTemplate from "$lib/template.flspace.mustache?raw";
 
+    type BayerOrder = [number, number, number, number];
+    const BayerOrders = {
+        RGGB: [0, 1, 1, 2],
+        BGGR: [2, 1, 1, 0],
+        GBRG: [1, 0, 2, 1],
+        GRBG: [1, 2, 0, 1],
+    } as const satisfies Record<string, BayerOrder>;
+
     onMount(async () => {
         const rotate: 0 | 180 = 180;
 
@@ -31,18 +39,30 @@
         console.log("Image data:", imageData);
 
         const rawImageData = await raw.rawImageData();
+        let bayerOrder = BayerOrders.RGGB as BayerOrder;
         if (rotate == 180) {
-            rawImageData.data = new Uint16Array(rawImageData.data.buffer).reverse();
+            const { data, order } = rotateRawData180(new Uint16Array(rawImageData.data.buffer), rawImageData.width, rawImageData.height, bayerOrder);
+            rawImageData.data = data;
+            bayerOrder = order;
         }
-        const { width, height, rgb8 } = await debayer(rawImageData, meta);
-        // Draw on canvas (raw pipeline)
+        const { width, height, rgb16 } = debayer(rawImageData, bayerOrder);
+
+        const rgbNormalized = normalizeFloat32RGB(rgb16, 255, 4095);
+
+        const overexposureInStops = 3;
+
+        const rWB = 1.6211;
+        const bWB = 2.0156;
+        const rgbNormalizedWB = applyWhiteBalance(rgbNormalized, rWB, 1, bWB);
         const canvasRaw = document.getElementById("imageDebayered") as HTMLCanvasElement;
         canvasRaw.width = width;
         canvasRaw.height = height;
-        drawToCanvas(canvasRaw, width, height, rgb8, 3);
+        drawToCanvas(canvasRaw, width, height, linearFloat32tosRGB(overexpose(rgbNormalizedWB, overexposureInStops)), 3);
 
-        let topLeft = [1802, 1009] as [number, number];
-        let bottomRight = [2005, 1145] as [number, number];
+        // Draw on canvas (raw pipeline)
+
+        let topLeft = [1804, 973] as [number, number];
+        let bottomRight = [2005, 1109] as [number, number];
 
         // draw rectangle on canvas
         const ctx = canvasRaw.getContext("2d");
@@ -52,9 +72,11 @@
 
         drawRectangle(ctx, topLeft, bottomRight);
 
+        const imageDataForProcessing: Float32Array = rgbNormalizedWB; // imageData;
+
         const SQUARES_X = 6;
         const SQUARES_Y = 4;
-        const SQUARE_SIZE_PERCENTAGE = 0.7;
+        const SQUARE_SIZE_PERCENTAGE = 0.5;
 
         const squareWidth = ((bottomRight[0] - topLeft[0]) / SQUARES_X) * SQUARE_SIZE_PERCENTAGE;
         const squareHeight = ((bottomRight[1] - topLeft[1]) / SQUARES_Y) * SQUARE_SIZE_PERCENTAGE;
@@ -87,9 +109,9 @@
                     const py = Math.round(squareTopLeft[1] + y);
                     if (px < 0 || py < 0 || px >= canvasRaw.width || py >= canvasRaw.height) continue;
                     const pixelIndex = (py * canvasRaw.width + px) * 3;
-                    const r = imageData.data[pixelIndex];
-                    const g = imageData.data[pixelIndex + 1];
-                    const b = imageData.data[pixelIndex + 2];
+                    const r = imageDataForProcessing[pixelIndex];
+                    const g = imageDataForProcessing[pixelIndex + 1];
+                    const b = imageDataForProcessing[pixelIndex + 2];
                     squarePixels.push({ r, g, b });
                 }
             }
@@ -120,7 +142,8 @@
         for (let i = 0; i < squarePositions.length; i++) {
             const pos = squarePositions[i];
             const mean = meanValues[i];
-            ctx.fillStyle = `rgb(${mean.r}, ${mean.g}, ${mean.b})`;
+            const values = [mean.r, mean.g, mean.b].map((v) => mapRange(linearFloat2sRGBFloatValue(overexposeValue(v, overexposureInStops)), 0, 1, 0, 255));
+            ctx.fillStyle = `rgb(${values.join(", ")})`;
             ctx.fillRect(pos[0], pos[1], squareWidth, squareHeight);
         }
 
@@ -160,9 +183,9 @@
         // Linearize reference RGB values (divide by 255 before linearization!)
         const referenceRGB_linear = referenceRGB.map(([r, g, b]) => [sRGB2linear(r / 255), sRGB2linear(g / 255), sRGB2linear(b / 255)]);
 
-        // Scale measured patch values to [0, 1] before matrix calculation (critical for matching MATLAB)
-        const ccMeasured = new Matrix(meanValues.map((v) => [v.r / 255, v.g / 255, v.b / 255]));
+        const ccMeasured = new Matrix(meanValues.map((v) => [v.r, v.g, v.b]));
         const ccRef = new Matrix(referenceRGB_linear);
+        console.log(ccRef);
         console.log("Measured RGB matrix (scaled):", ccMeasured.toString());
 
         // Use pseudoInverse(ccMeasured).mmul(ccRef) to match MATLAB
@@ -234,138 +257,167 @@
         console.log(`Canvas pixel position: (${x}, ${y})`);
     }
 
-    function debayer(rawImageData: LibRawRawImageData, meta: LibRawFullMetadata) {
+    function debayer(rawImageData: LibRawRawImageData, bayerOrder: BayerOrder): { width: number; height: number; rgb16: Float32Array } {
         console.log("Raw image data:", rawImageData);
-
-        // --- MATLAB-like RAW processing ---
-        // 1. Extract black/white level robustly from metadata
-        function getBlackWhiteLevels(meta: any) {
-            // Helper to extract a number or min/max from array/object
-            function getMin(val: any): number {
-                if (Array.isArray(val)) return Math.min(...val.map(Number));
-                if (typeof val === "object" && val !== null) return Math.min(...Object.values(val).map(Number));
-                return Number(val);
-            }
-            function getMax(val: any): number {
-                if (Array.isArray(val)) return Math.max(...val.map(Number));
-                if (typeof val === "object" && val !== null) return Math.max(...Object.values(val).map(Number));
-                return Number(val);
-            }
-            // Black level candidates
-            let blackCandidates = [meta.color_data?.black, meta.color_data?.ChannelBlackLevel, meta.color_data?.BlackLevel, meta.color_data?.black_level, meta.color_data?.blacklevel, meta.color_data?.blackLevel, meta.color_data?.cblack, meta.color_data?.AverageBlackLevel, meta.color_data?.dng_black, meta.color_data?.dng_cblack, meta.color_data?.BlackLevelTop, meta.color_data?.BlackLevelBottom, meta.color_data?.BlackLevel, meta.color_data?.BlackLevel ? meta.color_data.BlackLevel[0] : undefined, meta.color_data?.makernotes?.canon?.ChannelBlackLevel, meta.color_data?.makernotes?.canon?.AverageBlackLevel, meta.color_data?.makernotes?.fuji?.BlackLevel, meta.color_data?.makernotes?.kodak?.BlackLevelTop, meta.color_data?.makernotes?.kodak?.BlackLevelBottom].filter((v) => v !== undefined);
-            let black = blackCandidates.length ? getMin(blackCandidates[0]) : 0;
-            // White level candidates
-            let whiteCandidates = [meta.color_data?.data_maximum, meta.color_data?.maximum, meta.color_data?.NormalWhiteLevel, meta.color_data?.WhiteLevel, meta.color_data?.white_level, meta.color_data?.whitelevel, meta.color_data?.whiteLevel, meta.color_data?.linear_max, meta.color_data?.dng_whitelevel, meta.color_data?.SpecularWhiteLevel, meta.color_data?.clipWhite, meta.color_data?.val100percent, meta.color_data?.makernotes?.canon?.NormalWhiteLevel, meta.color_data?.makernotes?.canon?.SpecularWhiteLevel, meta.color_data?.makernotes?.kodak?.clipWhite, meta.color_data?.makernotes?.kodak?.val100percent].filter((v) => v !== undefined);
-            let white = whiteCandidates.length ? getMax(whiteCandidates[0]) : 1;
-            console.log("Black/White level candidates:", { black, white });
-            // return { black, white };
-            return { black: 255, white: 4096 }; // For testing, use fixed values
-        }
-        const { black, white } = getBlackWhiteLevels(meta);
-        console.log("Black/White levels:", black, white);
-
-        // 2. Get white balance multipliers
-        let wb = [1, 1, 1, 1];
-        if (meta.color_data && meta.color_data.cam_mul) {
-            wb = meta.color_data.cam_mul;
-        } else if (meta.color_data && meta.color_data.pre_mul) {
-            wb = meta.color_data.pre_mul;
-        }
-        wb = wb.slice(0, 3);
-        if (wb.length < 3) {
-            while (wb.length < 3) wb.push(1);
-        }
-        if (wb[1] !== 0) wb = wb.map((v) => v / wb[1]);
-        console.log("White balance multipliers:", wb);
-
-        // 3. Normalize and white-balance the raw Bayer data
-        // Assume RGGB Bayer pattern (can be improved for other patterns)
         const width = rawImageData.width;
         const height = rawImageData.height;
         const bayer = new Uint16Array(rawImageData.data.buffer);
         // Output RGB image
-        const rgb = new Float32Array(width * height * 3);
+        const rgb16 = new Float32Array(width * height * 3);
+
         // First, assign only the known Bayer channel at each pixel
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const idx = y * width + x;
                 let val = bayer[idx];
-                // Normalize
-                val = (val - black) / (white - black);
-                val = Math.max(0, Math.min(1, val));
-                // Determine Bayer channel (RGGB)
-                let c = 0; // 0=R, 1=G, 2=B
+                // Determine Bayer channel using bayerOrder
+                let c = 0;
                 if (y % 2 === 0 && x % 2 === 0)
-                    c = 0; // R
+                    c = bayerOrder[0]; // Top-left
                 else if (y % 2 === 0 && x % 2 === 1)
-                    c = 1; // G
+                    c = bayerOrder[1]; // Top-right
                 else if (y % 2 === 1 && x % 2 === 0)
-                    c = 1; // G
-                else if (y % 2 === 1 && x % 2 === 1) c = 2; // B
-                // Apply white balance
-                val = val * wb[c];
-                // Store only the known channel
-                rgb[idx * 3 + c] = val;
+                    c = bayerOrder[2]; // Bottom-left
+                else if (y % 2 === 1 && x % 2 === 1) c = bayerOrder[3]; // Bottom-right
+                rgb16[idx * 3 + c] = val;
             }
         }
         // Now, fill missing channels for each pixel by copying from the nearest pixel of the correct Bayer type
-        // Fill R channel
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = y * width + x;
-                if (rgb[idx * 3 + 0] === 0) {
-                    // Find nearest R pixel (even, even)
-                    const rx = x % 2 === 0 ? x : x - 1;
-                    const ry = y % 2 === 0 ? y : y - 1;
-                    const rIdx = ry * width + rx;
-                    rgb[idx * 3 + 0] = rgb[rIdx * 3 + 0];
+        // For each channel (0=R, 1=G, 2=B):
+        for (let channel = 0; channel < 3; channel++) {
+            // Find all Bayer positions for this channel
+            const bayerPositions = [];
+            for (let i = 0; i < 4; i++) {
+                if (bayerOrder[i] === channel) bayerPositions.push(i);
+            }
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    if (rgb16[idx * 3 + channel] === 0) {
+                        // Find nearest pixel with this channel in the Bayer pattern
+                        let found = false;
+                        for (const pos of bayerPositions) {
+                            // pos: 0=TL, 1=TR, 2=BL, 3=BR
+                            let nx = x;
+                            let ny = y;
+                            if (pos === 0) {
+                                nx = x - (x % 2);
+                                ny = y - (y % 2);
+                            } else if (pos === 1) {
+                                nx = x - (x % 2) + 1;
+                                ny = y - (y % 2);
+                            } else if (pos === 2) {
+                                nx = x - (x % 2);
+                                ny = y - (y % 2) + 1;
+                            } else if (pos === 3) {
+                                nx = x - (x % 2) + 1;
+                                ny = y - (y % 2) + 1;
+                            }
+                            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                const nidx = ny * width + nx;
+                                if (rgb16[nidx * 3 + channel] !== 0) {
+                                    rgb16[idx * 3 + channel] = rgb16[nidx * 3 + channel];
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        // If not found, leave as 0
+                    }
                 }
             }
         }
-        // Fill G channel
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = y * width + x;
-                if (rgb[idx * 3 + 1] === 0) {
-                    // Find nearest G pixel (even, odd) or (odd, even)
-                    let gx = x;
-                    let gy = y;
-                    if (y % 2 === 0) gx = x % 2 === 1 ? x : x + 1 < width ? x + 1 : x - 1;
-                    else gx = x % 2 === 0 ? x : x - 1;
-                    if (gx < 0) gx = 0;
-                    if (gx >= width) gx = width - 1;
-                    const gIdx = gy * width + gx;
-                    rgb[idx * 3 + 1] = rgb[gIdx * 3 + 1];
-                }
-            }
-        }
-        // Fill B channel
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const idx = y * width + x;
-                if (rgb[idx * 3 + 2] === 0) {
-                    // Find nearest B pixel (odd, odd)
-                    const bx = x % 2 === 1 ? x : x + 1 < width ? x + 1 : x - 1;
-                    const by = y % 2 === 1 ? y : y + 1 < height ? y + 1 : y - 1;
-                    const bIdx = by * width + bx;
-                    rgb[idx * 3 + 2] = rgb[bIdx * 3 + 2];
-                }
-            }
-        }
+        return { width, height, rgb16 };
+    }
 
-        const overexposureRangeInStops = 3;
-        // 4. Apply brightness factor
+    function normalizeFloat32RGB(rgb: Float32Array, blackLevel: number, whiteLevel: number): Float32Array {
+        const normalized = new Float32Array(rgb.length);
         for (let i = 0; i < rgb.length; i++) {
-            rgb[i] = Math.max(0, Math.min(1, rgb[i] * Math.pow(2, overexposureRangeInStops)));
+            // Normalize to [0, 1] range
+            normalized[i] = mapRange(rgb[i], blackLevel, whiteLevel, 0, 1);
+            // Clamp to [0, 1]
+            normalized[i] = Math.max(0, Math.min(1, normalized[i]));
+        }
+        return normalized;
+    }
+
+    function float32ArrayToUint8Array(floatArray: Float32Array): Uint8Array {
+        const uint8Array = new Uint8Array(floatArray.length);
+        for (let i = 0; i < floatArray.length; i++) {
+            uint8Array[i] = Math.round(floatArray[i] * 255);
+        }
+        return uint8Array;
+    }
+
+    function linearFloat2sRGBFloatValue(x: number): number {
+        return x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+    }
+
+    function linearFloat32tosRGB(floatArray: Float32Array): Uint8Array {
+        const uint8Array = new Uint8Array(floatArray.length);
+        for (let i = 0; i < floatArray.length; i++) {
+            uint8Array[i] = Math.round(linearFloat2sRGBFloatValue(floatArray[i]) * 255);
+        }
+        return uint8Array;
+    }
+
+    function overexpose(normalizedImage: Float32Array, stops: number): Float32Array {
+        // Overexpose the image by a given number of stops
+        const overexposed = new Float32Array(normalizedImage.length);
+        for (let i = 0; i < normalizedImage.length; i++) {
+            overexposed[i] = overexposeValue(normalizedImage[i], stops);
+        }
+        return overexposed;
+    }
+
+    function overexposeValue(value: number, stops: number): number {
+        // Overexpose a single value by a given number of stops
+        const factor = Math.pow(2, stops);
+        return clamp(value * factor, 0, 1); // Clamp to [0, 1]
+    }
+
+    function applyWhiteBalance(rgb: Float32Array, rWB: number, gWB: number, bWB: number): Float32Array {
+        // Apply white balance coefficients to RGB channels
+        const wbApplied = new Float32Array(rgb.length);
+        for (let i = 0; i < rgb.length; i += 3) {
+            wbApplied[i] = clamp(rgb[i] * rWB, 0, 1); // R channel
+            wbApplied[i + 1] = clamp(rgb[i + 1] * gWB, 0, 1); // G channel
+            wbApplied[i + 2] = clamp(rgb[i + 2] * bWB, 0, 1); // B channel
+        }
+        return wbApplied;
+    }
+
+    function mapRange(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
+        return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+    }
+
+    function clamp(value: number, min: number, max: number): number {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function rotateRawData180(rawData: Uint16Array, width: number, height: number, bayerOrder: BayerOrder): { data: Uint16Array; order: BayerOrder } {
+        const rotated = new Uint16Array(rawData.length);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const srcIndex = y * width + x;
+                const dstIndex = (height - 1 - y) * width + (width - 1 - x);
+                rotated[dstIndex] = rawData[srcIndex];
+            }
         }
 
-        // 5. Convert to 8-bit for display and patch extraction
-        const rgb8 = new Uint8Array(width * height * 3);
-        for (let i = 0; i < rgb8.length; i++) {
-            rgb8[i] = Math.round(Math.max(0, Math.min(1, rgb[i])) * 255);
+        // Adjust Bayer order for 180-degree rotation
+        if (bayerOrder === BayerOrders.RGGB) {
+            bayerOrder = BayerOrders.BGGR;
+        } else if (bayerOrder === BayerOrders.BGGR) {
+            bayerOrder = BayerOrders.RGGB;
+        } else if (bayerOrder === BayerOrders.GBRG) {
+            bayerOrder = BayerOrders.GRBG;
+        } else if (bayerOrder === BayerOrders.GRBG) {
+            bayerOrder = BayerOrders.GBRG;
         }
 
-        return { width, height, rgb8 };
+        return { data: rotated, order: bayerOrder };
     }
 </script>
 
