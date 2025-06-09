@@ -72,7 +72,7 @@
 
         drawRectangle(ctx, topLeft, bottomRight);
 
-        const imageDataForProcessing: Float32Array = rgbNormalizedWB; // imageData;
+        const imageDataForProcessing: Float32Array = rgbNormalizedWB;
 
         const SQUARES_X = 6;
         const SQUARES_Y = 4;
@@ -86,8 +86,8 @@
 
         // get square positions
         const squarePositions = [];
-        for (let i = 0; i < SQUARES_X; i++) {
-            for (let j = 0; j < SQUARES_Y; j++) {
+        for (let j = 0; j < SQUARES_Y; j++) {
+            for (let i = 0; i < SQUARES_X; i++) {
                 const x = topLeft[0] + (i * (bottomRight[0] - topLeft[0])) / SQUARES_X + ((1 - SQUARE_SIZE_PERCENTAGE) * ((bottomRight[0] - topLeft[0]) / SQUARES_X)) / 2;
                 const y = topLeft[1] + (j * (bottomRight[1] - topLeft[1])) / SQUARES_Y + ((1 - SQUARE_SIZE_PERCENTAGE) * ((bottomRight[1] - topLeft[1]) / SQUARES_Y)) / 2;
                 squarePositions.push([Math.round(x), Math.round(y)]);
@@ -147,6 +147,24 @@
             ctx.fillRect(pos[0], pos[1], squareWidth, squareHeight);
         }
 
+        // debug: draw the original square pixel values to measuredDebug
+        const canvasDebug = document.getElementById("measuredDebug") as HTMLCanvasElement;
+        canvasDebug.width = squareWidth * SQUARES_X;
+        canvasDebug.height = squareHeight * SQUARES_Y;
+        const ctxDebug = canvasDebug.getContext("2d");
+        if (!ctxDebug) {
+            return console.error("Failed to get canvas context for debug canvas");
+        }
+        ctxDebug.clearRect(0, 0, canvasDebug.width, canvasDebug.height);
+        for (let i = 0; i < SQUARES_X; i++) {
+            for (let j = 0; j < SQUARES_Y; j++) {
+                const mean = meanValues[i * SQUARES_Y + j];
+                const values = [mean.r, mean.g, mean.b].map((v) => Math.round(linearFloat2sRGBFloatValue(overexposeValue(v, overexposureInStops)) * 255));
+                ctxDebug.fillStyle = `rgb(${values.join(", ")})`;
+                ctxDebug.fillRect(i * squareWidth, j * squareHeight, squareWidth, squareHeight);
+            }
+        }
+
         // const reference rgb
         const referenceRGB = [
             [115, 82, 68],
@@ -180,10 +198,38 @@
             return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
         }
 
-        // Linearize reference RGB values (divide by 255 before linearization!)
-        const referenceRGB_linear = referenceRGB.map(([r, g, b]) => [sRGB2linear(r / 255), sRGB2linear(g / 255), sRGB2linear(b / 255)]);
+        const meanValuesTestMatlab = [
+            [0.0089, 0.0081, 0.0073],
+            [0.027, 0.0258, 0.0262],
+            [0.0101, 0.0193, 0.0299],
+            [0.0072, 0.0115, 0.0089],
+            [0.0135, 0.0214, 0.0346],
+            [0.0169, 0.0396, 0.0451],
+            [0.03, 0.0182, 0.0105],
+            [0.0068, 0.0143, 0.032],
+            [0.0211, 0.0107, 0.0115],
+            [0.0059, 0.0065, 0.0115],
+            [0.0211, 0.0346, 0.0189],
+            [0.0308, 0.0255, 0.0121],
+            [0.0042, 0.0086, 0.0215],
+            [0.0093, 0.0219, 0.0152],
+            [0.0173, 0.0065, 0.0063],
+            [0.0376, 0.0401, 0.0173],
+            [0.0215, 0.0141, 0.0231],
+            [0.008, 0.0234, 0.0373],
+            [0.0528, 0.076, 0.0877],
+            [0.0329, 0.0477, 0.0556],
+            [0.0215, 0.0307, 0.0367],
+            [0.0127, 0.0182, 0.0215],
+            [0.0072, 0.0104, 0.0121],
+            [0.0038, 0.0052, 0.0063],
+        ];
 
         const ccMeasured = new Matrix(meanValues.map((v) => [v.r, v.g, v.b]));
+        // const ccMeasured = new Matrix(meanValuesTestMatlab);
+
+        // Linearize reference RGB values (divide by 255 before linearization!)
+        const referenceRGB_linear = referenceRGB.map(([r, g, b]) => [sRGB2linear(r / 255), sRGB2linear(g / 255), sRGB2linear(b / 255)]);
         const ccRef = new Matrix(referenceRGB_linear);
         console.log(ccRef);
         console.log("Measured RGB matrix (scaled):", ccMeasured.toString());
@@ -230,16 +276,30 @@
 
         console.log("Template rendered:", template);
 
+        if (location.search.includes("download")) {
+            const blob = new Blob([template], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "camera-characterization.flspace";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         console.log(
             "Reference Test-Matrix\n",
             [
-                [0.72840857702481, 0.259481552530898, 0.012109870444291],
-                [0.283578414058249, 0.911551670105799, -0.195130084164048],
-                [-0.043128048758427, -0.443078007703037, 1.486206056461465],
+                [0.7784, 0.1931, 0.0285],
+                [0.3035, 0.8845, -0.1879],
+                [0.1082, -0.5238, 1.4156],
             ]
                 .map((row) => row.map((val) => val.toFixed(6)).join(", "))
                 .join("\n")
         );
+
+        drawCCCanvas("ccMeasured", ccMeasured);
+        drawCCCanvas("ccReference", ccRef);
+        drawCCCanvas("ccResult", ccMeasured.mmul(M));
     });
 
     function drawRectangle(ctx: CanvasRenderingContext2D, topLeft: [number, number], bottomRight: [number, number]) {
@@ -419,9 +479,40 @@
 
         return { data: rotated, order: bayerOrder };
     }
+
+    function drawCCCanvas(canvasId: string, matrix: Matrix) {
+        const squareWidth = 100;
+        const squareHeight = 100;
+        const squaresX = 6;
+        const squaresY = 4;
+        const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+            console.error(`Failed to get context for canvas ${canvasId}`);
+            return;
+        }
+        canvas.width = squareWidth * squaresX;
+        canvas.height = squareHeight * squaresY;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let y = 0; y < squaresY; y++) {
+            for (let x = 0; x < squaresX; x++) {
+                const rgb = matrix.to2DArray()[y * squaresX + x].map((v) => 255 * linearFloat2sRGBFloatValue(v));
+                ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 255)`;
+                ctx.fillRect(x * squareWidth, y * squareHeight, squareWidth, squareHeight);
+            }
+        }
+    }
 </script>
 
-<canvas id="imageDebayered" on:click={logCanvasPixelPosition} />
+<canvas id="imageDebayered" on:click={logCanvasPixelPosition} /><br />
+Debug:<br />
+<canvas id="measuredDebug" /><br />
+Measured:<br />
+<canvas id="ccMeasured" /><br />
+Reference:<br />
+<canvas id="ccReference" /><br />
+Result:<br />
+<canvas id="ccResult" />
 
 <style>
     canvas {
