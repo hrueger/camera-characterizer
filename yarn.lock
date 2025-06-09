@@ -681,7 +681,7 @@ __metadata:
     "@sveltejs/kit": "npm:^2.0.0"
     "@sveltejs/vite-plugin-svelte": "npm:^3.0.0"
     "@types/mustache": "npm:^4.2.6"
-    libraw-wasm: ../LibRaw-Wasm
+    libraw-wasm: ./libraries/libraw-wasm-1.1.2.tgz
     ml-matrix: "npm:^6.12.1"
     mustache: "npm:^4.2.0"
     svelte: "npm:^4.2.7"
@@ -1247,10 +1247,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"libraw-wasm@file:../LibRaw-Wasm::locator=camera-characterizer%40workspace%3A.":
+"libraw-wasm@file:./libraries/libraw-wasm-1.1.2.tgz::locator=camera-characterizer%40workspace%3A.":
   version: 1.1.2
-  resolution: "libraw-wasm@file:../LibRaw-Wasm#../LibRaw-Wasm::hash=3c672b&locator=camera-characterizer%40workspace%3A."
-  checksum: 10c0/20b44d9e85fe94e32022b12e99687c643c296d70a86addf7a12c68e0a44e2e16ff32ec57b5cfb30fdfb36ccb825d86d6478339add0a0c8d3689eb8ad7e77346f
+  resolution: "libraw-wasm@file:./libraries/libraw-wasm-1.1.2.tgz#./libraries/libraw-wasm-1.1.2.tgz::hash=b9bfcd&locator=camera-characterizer%40workspace%3A."
+  checksum: 10c0/4377cb5cad6d84f8bfa997ec2d7a4d6a46281156c6415efb7e2dccec880c2b0908a39708868bf2523d61556d5fcbf568e42c92483efc097c2c2a00dc76295d60
   languageName: node
   linkType: hard
 

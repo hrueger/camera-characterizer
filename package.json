@@ -15,7 +15,7 @@
 		"@sveltejs/kit": "^2.0.0",
 		"@sveltejs/vite-plugin-svelte": "^3.0.0",
 		"@types/mustache": "^4.2.6",
-		"libraw-wasm": "../LibRaw-Wasm",
+		"libraw-wasm": "./libraries/libraw-wasm-1.1.2.tgz",
 		"ml-matrix": "^6.12.1",
 		"mustache": "^4.2.0",
 		"svelte": "^4.2.7",
