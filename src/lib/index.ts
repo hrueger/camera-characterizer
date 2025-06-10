@@ -184,11 +184,11 @@ export async function processImageFile(file: File) {
 
     console.log("Template rendered:", renderedTemplate);
 
-    drawCCCanvas("ccMeasured", ccMeasured);
-    drawCCCanvas("ccReference", ccRef);
-    drawCCCanvas("ccResult", ccMeasured.mmul(M));
-
+    const ccCalculated = ccMeasured.mmul(M);
     return {
         renderedTemplate,
+        ccMeasured,
+        ccRef,
+        ccCalculated,
     };
 }

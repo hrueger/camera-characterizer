@@ -44,11 +44,13 @@ export function logCanvasPixelPosition(event: MouseEvent) {
     console.log(`Canvas pixel position: (${x}, ${y})`);
 }
 
-export function drawCCCanvas(canvasId: string, matrix: Matrix) {
+export type CCDrawingMode = "6x4" | "24x1";
+
+export function drawCCCanvas(canvasId: string, matrix: Matrix, ccDrawingMode: CCDrawingMode) {
     const squareWidth = 100;
     const squareHeight = 100;
-    const squaresX = 6;
-    const squaresY = 4;
+    const squaresX = ccDrawingMode == "6x4" ? 6 : 24;
+    const squaresY = ccDrawingMode == "6x4" ? 4 : 1;
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
