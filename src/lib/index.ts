@@ -78,7 +78,7 @@ export type ColorCheckerCoordinates = {
     bottomRight: [number, number];
 };
 
-export async function calculateMatrix(options: { rgbNormalizedWB: Float32Array<ArrayBufferLike>; colorChecker: ColorCheckerCoordinates; width: number; height: number; overexposureInStops: number; ctx: CanvasRenderingContext2D; canvasImageData: ImageData }) {
+export async function calculateMatrix(options: { rgbNormalizedWB: Float32Array<ArrayBufferLike>; colorChecker: ColorCheckerCoordinates; width: number; height: number; overexposureInStops: number; ctx: CanvasRenderingContext2D; canvasImageData: ImageData; options: Options }) {
     const meanValues = getMeanValues(options);
 
     const ccMeasured = new Matrix(meanValues.map((v) => [v.r, v.g, v.b]));
@@ -88,20 +88,20 @@ export async function calculateMatrix(options: { rgbNormalizedWB: Float32Array<A
 
     const M = pseudoInverse(ccMeasured).mmul(ccRef);
 
-    const M_Sigma_to_XYZ = M.mmul(SRGB_TO_XYZ_MATRIX);
+    const M_to_XYZ = M.mmul(SRGB_TO_XYZ_MATRIX);
 
     // Normalize columns
-    const colSums = M_Sigma_to_XYZ.sum("column");
-    const M_Normalized = M_Sigma_to_XYZ.clone();
+    const colSums = M_to_XYZ.sum("column");
+    const M_Normalized = M_to_XYZ.clone();
     for (let col = 0; col < 3; col++) {
         for (let row = 0; row < 3; row++) {
-            M_Normalized.set(row, col, M_Sigma_to_XYZ.get(row, col) / colSums[col]);
+            M_Normalized.set(row, col, M_to_XYZ.get(row, col) / colSums[col]);
         }
     }
 
     const M_Filmlight = M_Normalized.transpose();
 
-    const renderedTemplate = renderFLSpaceTemplate(M_Filmlight);
+    const renderedTemplate = renderFLSpaceTemplate(M_Filmlight, getTitle(options.options));
 
     const ccCalculated = ccMeasured.mmul(M);
     return {
@@ -111,6 +111,15 @@ export async function calculateMatrix(options: { rgbNormalizedWB: Float32Array<A
         ccCalculated,
     };
 }
+
+export function getTitle(options: Options) {
+    return `${options.manufacturer} ${options.camera}: ${options.scene}`;
+}
+
+export function toSafeFilename(text: string) {
+    return text.replace(/[^a-zA-Z0-9-_]/g, "_").replace(/_+/g, "_");
+}
+
 export function getMeanValues(options: { rgbNormalizedWB: Float32Array<ArrayBufferLike>; colorChecker: ColorCheckerCoordinates; width: number; height: number; overexposureInStops: number; ctx: CanvasRenderingContext2D; canvasImageData: ImageData }) {
     const { colorChecker, rgbNormalizedWB, height, width, ctx, canvasImageData } = options;
     let { bottomRight, topLeft } = colorChecker;

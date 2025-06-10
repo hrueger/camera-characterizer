@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { analyzeImageFile, calculateMatrix, getMeanValues, renderRawData, type ColorCheckerCoordinates } from "$lib";
+    import { analyzeImageFile, calculateMatrix, getMeanValues, getTitle, renderRawData, toSafeFilename, type ColorCheckerCoordinates } from "$lib";
     import { drawCCCanvas, getMousePosition, type CCDrawingMode } from "$lib/canvas";
     import { downloadFLSpace } from "$lib/flspace";
 
@@ -51,8 +51,8 @@
         if (!(colorChecker?.topLeft && colorChecker?.bottomRight)) {
             return;
         }
-        const options2 = { colorChecker: colorChecker as ColorCheckerCoordinates, ctx, height: options.rawImageData.height, width: options.rawImageData.width, overexposureInStops: options.overexposureInStops, rgbNormalizedWB: rawData!.rgbNormalizedWB, canvasImageData: rawData!.canvasImageData };
-        resultMeanValues = await getMeanValues(options2);
+        const options2 = { colorChecker: colorChecker as ColorCheckerCoordinates, ctx, height: options.rawImageData.height, width: options.rawImageData.width, overexposureInStops: options.overexposureInStops, rgbNormalizedWB: rawData!.rgbNormalizedWB, canvasImageData: rawData!.canvasImageData, options };
+        resultMeanValues = getMeanValues(options2);
         resultMatrixes = await calculateMatrix(options2);
         drawCCs();
     }
@@ -245,7 +245,7 @@
             {#if resultMatrixes}
                 <div class="card mb-3 p-3">
                     <div class="mb-2 fw-bold">Baselight Colorspace Export</div>
-                    <button class="btn btn-outline-primary btn-sm mb-2" on:click={() => downloadFLSpace({ renderedTemplate: required(resultMatrixes).renderedTemplate })}>Download .flspace File</button>
+                    <button class="btn btn-outline-primary btn-sm mb-2" on:click={() => downloadFLSpace({ renderedTemplate: required(resultMatrixes).renderedTemplate }, toSafeFilename(getTitle(required(options))))}>Download .flspace File</button>
                 </div>
             {/if}
         </div>
