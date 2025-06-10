@@ -32,8 +32,12 @@
         working = true;
         setTimeout(async () => {
             if (!options) return;
+            console.time("Rendering Raw Data");
             rawData = await renderRawData(options);
+            console.timeEnd("Rendering Raw Data");
+            console.time("Calculating Matrixes");
             await showSquaresAndCalcMatrixes();
+            console.timeEnd("Calculating Matrixes");
             working = false;
         }, 100);
     }

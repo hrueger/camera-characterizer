@@ -18,6 +18,7 @@
 		"@types/mustache": "^4.2.6",
 		"bootstrap": "^5.3.6",
 		"libraw-wasm": "./libraries/libraw-wasm-1.1.2.tgz",
+		"linear-srgb": "./wasm-tests/linear-srgb/pkg",
 		"ml-matrix": "^6.12.1",
 		"mustache": "^4.2.0",
 		"svelte": "^4.2.7",

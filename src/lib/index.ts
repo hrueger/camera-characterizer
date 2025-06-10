@@ -41,10 +41,10 @@ export async function analyzeImageFile(file: File): Promise<Options> {
     const rawImageData = await raw.rawImageData();
 
     return {
-        rWB: 1.6211,
-        bWB: 2.0156,
+        rWB: meta.color_data.cam_mul[0],
+        bWB: meta.color_data.cam_mul[2],
         blackLevel: 255,
-        whiteLevel: 4095,
+        whiteLevel: meta.color_data.maximum,
         overexposureInStops: 3,
         manufacturer: meta.camera_make,
         camera: meta.camera_model,
@@ -57,19 +57,35 @@ export async function analyzeImageFile(file: File): Promise<Options> {
 export async function renderRawData(options: Options) {
     let bayerOrder = BayerOrders.RGGB as BayerOrder;
     if (options.rotate == 180) {
+        console.time("Rotating Raw Data 180°");
         const { data, order } = rotateRawData180(new Uint16Array(options.rawImageData.data.buffer), options.rawImageData.width, options.rawImageData.height, bayerOrder);
+        console.timeEnd("Rotating Raw Data 180°");
         options.rawImageData.data = data;
         bayerOrder = order;
     }
+    console.time("Debayering");
     const { width, height, rgb16 } = debayer(options.rawImageData, bayerOrder);
-
+    console.timeEnd("Debayering");
+    console.time("Normalizing RGB");
     const rgbNormalized = normalizeFloat32RGB(rgb16, options.blackLevel, options.whiteLevel);
+    console.timeEnd("Normalizing RGB");
 
+    console.time("Applying White Balance");
     const rgbNormalizedWB = applyWhiteBalance(rgbNormalized, options.rWB, 1, options.bWB);
+    console.timeEnd("Applying White Balance");
+
     const canvasRaw = document.getElementById("imageDebayered") as HTMLCanvasElement;
     canvasRaw.width = width;
     canvasRaw.height = height;
-    const { imageData } = drawToCanvas(canvasRaw, width, height, linearFloat32tosRGB(overexpose(rgbNormalizedWB, options.overexposureInStops)), 3);
+    console.time("Overexposing");
+    const overexposed = overexpose(rgbNormalizedWB, options.overexposureInStops);
+    console.timeEnd("Overexposing");
+    console.time("Converting to sRGB");
+    const sRGB = await linearFloat32tosRGB(overexposed);
+    console.timeEnd("Converting to sRGB");
+    console.time("Drawing to Canvas");
+    const { imageData } = drawToCanvas(canvasRaw, width, height, sRGB, 3);
+    console.timeEnd("Drawing to Canvas");
     return { rgbNormalizedWB, canvasImageData: imageData };
 }
 

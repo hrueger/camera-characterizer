@@ -709,6 +709,7 @@ __metadata:
     "@types/mustache": "npm:^4.2.6"
     bootstrap: "npm:^5.3.6"
     libraw-wasm: ./libraries/libraw-wasm-1.1.2.tgz
+    linear-srgb: ./wasm-tests/linear-srgb/pkg
     ml-matrix: "npm:^6.12.1"
     mustache: "npm:^4.2.0"
     svelte: "npm:^4.2.7"
@@ -1278,6 +1279,13 @@ __metadata:
   version: 1.1.2
   resolution: "libraw-wasm@file:./libraries/libraw-wasm-1.1.2.tgz#./libraries/libraw-wasm-1.1.2.tgz::hash=b9bfcd&locator=camera-characterizer%40workspace%3A."
   checksum: 10c0/4377cb5cad6d84f8bfa997ec2d7a4d6a46281156c6415efb7e2dccec880c2b0908a39708868bf2523d61556d5fcbf568e42c92483efc097c2c2a00dc76295d60
+  languageName: node
+  linkType: hard
+
+"linear-srgb@file:./wasm-tests/linear-srgb/pkg::locator=camera-characterizer%40workspace%3A.":
+  version: 0.1.0
+  resolution: "linear-srgb@file:./wasm-tests/linear-srgb/pkg#./wasm-tests/linear-srgb/pkg::hash=cd3cd7&locator=camera-characterizer%40workspace%3A."
+  checksum: 10c0/7be2192de6a42ee9b8de2efdd7500d5f3609c62c827f05692dfae72dee8aaad1ac269eb5f590781cc85ec83acddfaaba192394399e3600474e2bb6b5dc20a72e
   languageName: node
   linkType: hard
 

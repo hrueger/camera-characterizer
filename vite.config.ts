@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
     plugins: [sveltekit()],
-    optimizeDeps: { exclude: ["libraw-wasm"] },
+    optimizeDeps: { exclude: ["libraw-wasm", "linear-srgb"] },
     server: {
         headers: {
             "Cross-Origin-Opener-Policy": "same-origin",
