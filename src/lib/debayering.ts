@@ -9,7 +9,6 @@ export const BayerOrders = {
 } as const satisfies Record<string, BayerOrder>;
 
 export function debayer(rawImageData: LibRawRawImageData, bayerOrder: BayerOrder): { width: number; height: number; rgb16: Float32Array } {
-    console.log("Raw image data:", rawImageData);
     const width = rawImageData.width;
     const height = rawImageData.height;
     const bayer = new Uint16Array(rawImageData.data.buffer);

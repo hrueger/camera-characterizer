@@ -37,14 +37,8 @@ export async function analyzeImageFile(file: File): Promise<Options> {
 
     // Fetch metadata
     const meta = await raw.metadata(true);
-    console.log("Metadata:", meta.color_data);
-
-    // Fetch the decoded image data (RGB pixels)
-    const imageData = await raw.imageData();
-    console.log("Image data:", imageData);
 
     const rawImageData = await raw.rawImageData();
-    console.log("Raw image data:", rawImageData);
 
     return {
         rWB: 1.6211,
@@ -91,16 +85,10 @@ export async function calculateMatrix(options: { rgbNormalizedWB: Float32Array<A
 
     const referenceRGB_linear = REFERENCE_RGB_VALUES.map(([r, g, b]) => [sRGB2linear(r / 255), sRGB2linear(g / 255), sRGB2linear(b / 255)]);
     const ccRef = new Matrix(referenceRGB_linear);
-    console.log(ccRef);
-    console.log("Measured RGB matrix (scaled):", ccMeasured.toString());
 
-    // Use pseudoInverse(ccMeasured).mmul(ccRef) to match MATLAB
     const M = pseudoInverse(ccMeasured).mmul(ccRef);
-    console.log("Color correction matrix M:", M.toString());
 
-    // Calculate M_Sigma_to_XYZ
     const M_Sigma_to_XYZ = M.mmul(SRGB_TO_XYZ_MATRIX);
-    console.log("M_Sigma_to_XYZ:", M_Sigma_to_XYZ.toString());
 
     // Normalize columns
     const colSums = M_Sigma_to_XYZ.sum("column");
@@ -110,15 +98,10 @@ export async function calculateMatrix(options: { rgbNormalizedWB: Float32Array<A
             M_Normalized.set(row, col, M_Sigma_to_XYZ.get(row, col) / colSums[col]);
         }
     }
-    console.log("M_Normalized:", M_Normalized.toString());
 
-    // Filmlight matrix is the transpose
     const M_Filmlight = M_Normalized.transpose();
-    console.log("M_Filmlight:", M_Filmlight.toString());
 
     const renderedTemplate = renderFLSpaceTemplate(M_Filmlight);
-
-    console.log("Template rendered:", renderedTemplate);
 
     const ccCalculated = ccMeasured.mmul(M);
     return {
@@ -180,8 +163,6 @@ export function getMeanValues(options: { rgbNormalizedWB: Float32Array<ArrayBuff
         pixelValues.push(squarePixels);
     }
 
-    console.log("Pixel values in squares:", pixelValues);
-
     const meanValues = pixelValues.map((square) => {
         const rArr = square.map((p) => p.r);
         const gArr = square.map((p) => p.g);
@@ -192,7 +173,6 @@ export function getMeanValues(options: { rgbNormalizedWB: Float32Array<ArrayBuff
             b: median(bArr),
         };
     });
-    console.log("Median pixel values:", meanValues);
 
     // draw the squares in the color of the median pixel values
     for (let i = 0; i < squarePositions.length; i++) {

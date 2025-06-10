@@ -62,7 +62,6 @@
     }
 
     function updateColorCheckerPosition(event: MouseEvent) {
-        console.log("mouse over with", getMousePosition(event));
         if (colorCheckerStatus == "allSet") return;
         if (colorCheckerStatus == "topLeftSet") {
             const mousePosition = getMousePosition(event);
