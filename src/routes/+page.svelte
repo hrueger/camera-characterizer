@@ -81,10 +81,19 @@
         <div class="col-12">
             <h1 class="mb-3">Chamera Characterization Tool</h1>
             <div class="card mb-3 p-3">
-                <input id="fileInput" class="form-control mb-2" type="file" accept=".dng,.DNG,.raw,.RAW,.nef,.NEF,.cr2,.CR2,.arw,.ARW,.tiff,.TIFF,.tif,.TIF" />
-                {#if working}
-                    <div class="alert alert-info py-2">Processing image...</div>
-                {/if}
+                <div class="row">
+                    <div class="col">
+                        <input id="fileInput" class="form-control mb-2" type="file" accept=".dng,.DNG,.raw,.RAW,.nef,.NEF,.cr2,.CR2,.arw,.ARW,.tiff,.TIFF,.tif,.TIF" />
+                    </div>
+                    <div class="col">
+                        {#if working}
+                            <div class="alert alert-info py-2">
+                                Processing image...
+                                <div class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></div>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
             </div>
 
             {#if options}
@@ -95,25 +104,9 @@
                         <div class="row">
                             <div class="col-12 col-sm-6 col-md-3">
                                 <div class="row mb-3">
-                                    <span class="col-sm-7">Colorchecker-Preview-Mode</span>
-                                    <div class="col-sm-5">
-                                        <div class="form-check form-check-inline me-3">
-                                            <input class="form-check-input" type="radio" id="ccDrawingMode6x4" name="ccDrawingMode" bind:group={ccDrawingMode} value="6x4" on:change={drawCCs} />
-                                            <label class="text-end form-check-label" for="ccDrawingMode6x4">6x4</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" id="ccDrawingMode24x1" name="ccDrawingMode" bind:group={ccDrawingMode} value="24x1" on:change={drawCCs} />
-                                            <label class="text-end form-check-label" for="ccDrawingMode24x1">24x1</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-12 col-sm-6 col-md-3">
-                                <div class="row mb-3">
                                     <label class="text-end col-sm-7" for="blackLevel">Black Level</label>
                                     <div class="col-sm-5">
-                                        <input type="number" class="form-control" id="blackLevel" bind:value={options.blackLevel} step="1" on:change={renderPreview} />
+                                        <input type="number" class="form-control form-control-sm" id="blackLevel" bind:value={options.blackLevel} step="1" on:change={renderPreview} />
                                     </div>
                                 </div>
                             </div>
@@ -121,7 +114,7 @@
                                 <div class="row mb-3">
                                     <label class="text-end col-sm-7" for="whiteLevel">White Level</label>
                                     <div class="col-sm-5">
-                                        <input type="number" class="form-control" id="whiteLevel" bind:value={options.whiteLevel} step="1" on:change={renderPreview} />
+                                        <input type="number" class="form-control form-control-sm" id="whiteLevel" bind:value={options.whiteLevel} step="1" on:change={renderPreview} />
                                     </div>
                                 </div>
                             </div>
@@ -129,7 +122,7 @@
                                 <div class="row mb-3">
                                     <label class="text-end col-sm-7" for="rWB">White Balance: Red</label>
                                     <div class="col-sm-5">
-                                        <input type="number" class="form-control" id="rWB" bind:value={options.rWB} step="0.0001" on:change={renderPreview} />
+                                        <input type="number" class="form-control form-control-sm" id="rWB" bind:value={options.rWB} step="0.0001" on:change={renderPreview} />
                                     </div>
                                 </div>
                             </div>
@@ -137,7 +130,7 @@
                                 <div class="row mb-3">
                                     <label class="text-end col-sm-7" for="bWB">White Balance: Blue</label>
                                     <div class="col-sm-5">
-                                        <input type="number" class="form-control" id="bWB" bind:value={options.bWB} step="0.0001" on:change={renderPreview} />
+                                        <input type="number" class="form-control form-control-sm" id="bWB" bind:value={options.bWB} step="0.0001" on:change={renderPreview} />
                                     </div>
                                 </div>
                             </div>
@@ -145,7 +138,7 @@
                                 <div class="row mb-3">
                                     <label class="text-end col-sm-7" for="overexposureInStops">Overexposure in Stops</label>
                                     <div class="col-sm-5">
-                                        <input type="number" class="form-control" id="overexposureInStops" bind:value={options.overexposureInStops} step="0.1" on:change={renderPreview} />
+                                        <input type="number" class="form-control form-control-sm" id="overexposureInStops" bind:value={options.overexposureInStops} step="0.1" on:change={renderPreview} />
                                     </div>
                                 </div>
                             </div>
@@ -153,7 +146,7 @@
                                 <div class="row mb-3">
                                     <label class="text-end col-sm-7" for="rotate">Rotate</label>
                                     <div class="col-sm-5">
-                                        <select class="form-select" id="rotate" bind:value={options.rotate} on:change={renderPreview}>
+                                        <select class="form-select form-select-sm" id="rotate" bind:value={options.rotate} on:change={renderPreview}>
                                             <option value={0}>0°</option>
                                             <option value={180}>180°</option>
                                         </select>
@@ -168,7 +161,7 @@
     </div>
     <div class="row">
         <div class="col-md-6">
-            <div class="card mb-3 p-3" class:opacity-0={!imageFile}>
+            <div class="card mb-3 p-3" class:d-none={!rawData}>
                 <!-- svelte-ignore a11y-mouse-events-have-key-events -->
                 <div class="mb-2">
                     <div class="mb-2 fw-bold">Select Colorpicker</div>
@@ -202,13 +195,25 @@
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card mb-3 p-3" class:opacity-0={!imageFile}>
+            <div class="card mb-3 p-3" class:d-none={!rawData}>
                 <div class="mb-2 fw-bold">Debug</div>
                 <canvas id="measuredDebug" class="border rounded mb-2" />
             </div>
 
-            <div class="card mb-3 p-3" class:opacity-0={!resultMatrixes}>
-                <div class="fw-bold mb-3">Color Chart Canvases</div>
+            <div class="card mb-3 p-3" class:d-none={!resultMatrixes}>
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div class="fw-bold">Color Chart Canvases</div>
+                    <div class="d-flex flex-nowrap">
+                        <div class="form-check form-check-inline mx-3">
+                            <input class="form-check-input" type="radio" id="ccDrawingMode6x4" name="ccDrawingMode" bind:group={ccDrawingMode} value="6x4" on:change={drawCCs} />
+                            <label class="text-end form-check-label" for="ccDrawingMode6x4">6x4</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" id="ccDrawingMode24x1" name="ccDrawingMode" bind:group={ccDrawingMode} value="24x1" on:change={drawCCs} />
+                            <label class="text-end form-check-label" for="ccDrawingMode24x1">24x1</label>
+                        </div>
+                    </div>
+                </div>
                 {#if ccDrawingMode === "6x4"}
                     <div class="d-flex flex-row justify-content-center align-items-end gap-3 mb-2">
                         <div class="d-flex flex-column align-items-center">
