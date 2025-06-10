@@ -23,11 +23,11 @@
     let working = false;
 </script>
 
-<input id="fileInput" type="file" accept=".dng,.DNG,.raw,.RAW,.nef,.NEF,.cr2,.CR2,.arw,.ARW,.tiff,.TIFF,.tif,.TIF" /><br />
+<input id="fileInput" class="form-control" type="file" accept=".dng,.DNG,.raw,.RAW,.nef,.NEF,.cr2,.CR2,.arw,.ARW,.tiff,.TIFF,.tif,.TIF" /><br />
 {#if working}
     <p>Processing image...</p>
 {/if}
-<button on:click={() => downloadFLSpace({ renderedTemplate })}>Download .flspace File</button><br />
+<button class="btn btn-outline-primary btn-sm" on:click={() => downloadFLSpace({ renderedTemplate })}>Download .flspace File</button><br />
 <canvas id="imageDebayered" on:click={logCanvasPixelPosition} /><br />
 Debug:<br />
 <canvas id="measuredDebug" /><br />
