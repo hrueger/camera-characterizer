@@ -1,30 +1,32 @@
 import LibRaw from "libraw-wasm";
-import { BayerOrders, debayer, type BayerOrder } from "./debayering";
 import Matrix, { pseudoInverse } from "ml-matrix";
 import { drawRectangle, drawToCanvas } from "./canvas";
-import { linearFloat32tosRGB, linearFloat2sRGBFloatValue, sRGB2linear } from "./colorspaces";
+import { linearFloat2sRGBFloatValue, linearFloat32tosRGB, sRGB2linear, sRGB2linearFloat32 } from "./colorspaces";
 import { applyWhiteBalance, overexpose, overexposeValue, rotateRawData180 } from "./image-processing";
-import { normalizeFloat32RGB, mapRange, median } from "./math";
+import { mapRange, median, normalizeFloat32RGB } from "./math";
 import { renderFLSpaceTemplate } from "./flspace";
 import { REFERENCE_RGB_VALUES, SRGB_TO_XYZ_MATRIX } from "./constants";
-import type { LibRawRawImageData } from "libraw-wasm/dist/types";
+import type { LibRawImageData, LibRawRawImageData } from "libraw-wasm/dist/types";
+import { BayerOrders, debayer, type BayerOrder } from "./debayering";
 
 type Options = {
     rotate: 0 | 180;
     whiteLevel: number;
     blackLevel: number;
-    rawImageData: LibRawRawImageData;
+    rawImageData: LibRawImageData;
+    rawRawImageData: LibRawRawImageData;
     rWB: number;
     bWB: number;
     overexposureInStops: number;
     manufacturer: string;
     camera: string;
     scene: string;
+    debayeringAlgorithm?: "custom" | "libraw";
+
+    rotatedData?: { imageData: Uint16Array<ArrayBufferLike>; bayerOrder: BayerOrder };
 };
 
-export async function analyzeImageFile(file: File): Promise<Options> {
-    const rotate: 0 | 180 = 180;
-
+export async function analyzeImageFile(file: File, options: Options | undefined): Promise<Options> {
     const arrayBuffer = await file.arrayBuffer();
     // Instantiate LibRaw
     const raw = new LibRaw();
@@ -32,36 +34,55 @@ export async function analyzeImageFile(file: File): Promise<Options> {
     await raw.open(new Uint8Array(arrayBuffer), {
         useCameraWb: 1,
         bright: 4,
-        userFlip: rotate == 180 ? 3 : 0,
+        userFlip: options?.rotate == 180 ? 3 : 0,
     });
+    console.log(options?.rotate);
 
     // Fetch metadata
     const meta = await raw.metadata(true);
 
-    const rawImageData = await raw.rawImageData();
+    const rawImageData = await raw.imageData();
+    const rawRawImageData = await raw.rawImageData();
 
     return {
-        rWB: 1.6211,
-        bWB: 2.0156,
+        ...options,
+        rWB: meta.color_data.cam_mul[0],
+        bWB: meta.color_data.cam_mul[2],
         blackLevel: 255,
         whiteLevel: 4095,
-        overexposureInStops: 3,
+        overexposureInStops: options?.overexposureInStops ?? 3,
         manufacturer: meta.camera_make,
         camera: meta.camera_model,
         scene: "Unknown Scene",
         rawImageData,
-        rotate: 0,
+        rawRawImageData,
+        rotate: options?.rotate ?? 0,
+        debayeringAlgorithm: options?.debayeringAlgorithm ?? "libraw",
     };
 }
 
 export async function renderRawData(options: Options) {
-    let bayerOrder = BayerOrders.RGGB as BayerOrder;
-    if (options.rotate == 180) {
-        const { data, order } = rotateRawData180(new Uint16Array(options.rawImageData.data.buffer), options.rawImageData.width, options.rawImageData.height, bayerOrder);
-        options.rawImageData.data = data;
-        bayerOrder = order;
+    if (options.debayeringAlgorithm === "libraw") {
+        const canvasRaw = document.getElementById("imageDebayered") as HTMLCanvasElement;
+        canvasRaw.width = options.rawImageData.width;
+        canvasRaw.height = options.rawImageData.height;
+        const rgbNormalizedWB = overexpose(sRGB2linearFloat32(options.rawImageData.data as Uint8Array), -options.overexposureInStops);
+        const { imageData } = drawToCanvas(canvasRaw, canvasRaw.width, canvasRaw.height, options.rawImageData.data as Uint8Array, 3);
+        return { rgbNormalizedWB, canvasImageData: imageData };
     }
-    const { width, height, rgb16 } = debayer(options.rawImageData, bayerOrder);
+    let bayerOrder = BayerOrders.RGGB as BayerOrder;
+    let data = options.rawRawImageData.data;
+    if (options.rotate == 180) {
+        if (!options.rotatedData) {
+            const { data, order } = rotateRawData180(new Uint16Array(options.rawRawImageData.data.buffer), options.rawRawImageData.width, options.rawRawImageData.height, bayerOrder);
+
+            options.rotatedData = { imageData: data, bayerOrder: order };
+        }
+        bayerOrder = options.rotatedData.bayerOrder;
+        data = options.rotatedData.imageData;
+    }
+
+    const { width, height, rgb16 } = debayer({ ...options.rawRawImageData, data }, bayerOrder);
 
     const rgbNormalized = normalizeFloat32RGB(rgb16, options.blackLevel, options.whiteLevel);
 

@@ -13,3 +13,11 @@ export function linearFloat32tosRGB(floatArray: Float32Array): Uint8Array {
     }
     return uint8Array;
 }
+
+export function sRGB2linearFloat32(uint8Array: Uint8Array): Float32Array {
+    const floatArray = new Float32Array(uint8Array.length);
+    for (let i = 0; i < uint8Array.length; i++) {
+        floatArray[i] = sRGB2linear(uint8Array[i] / 255);
+    }
+    return floatArray;
+}

@@ -21,17 +21,20 @@
             if (!files || files.length === 0) return;
             imageFile = files[0];
             working = true;
-            options = await analyzeImageFile(imageFile);
+            options = await analyzeImageFile(imageFile, options);
             await renderPreview();
             working = false;
         });
     });
 
-    async function renderPreview() {
+    async function renderPreview(needsReanalyze = false) {
         if (!options) return;
         working = true;
         setTimeout(async () => {
-            if (!options) return;
+            if (!options || !imageFile) return;
+            if (needsReanalyze) {
+                options = await analyzeImageFile(imageFile, options);
+            }
             rawData = await renderRawData(options);
             await showSquaresAndCalcMatrixes();
             working = false;
@@ -87,7 +90,7 @@
                     </div>
                     <div class="col">
                         {#if working}
-                            <div class="alert alert-info py-2">
+                            <div class="alert alert-info py-2 mb-0">
                                 Processing image...
                                 <div class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></div>
                             </div>
@@ -104,41 +107,12 @@
                         <div class="row">
                             <div class="col-12 col-sm-6 col-md-3">
                                 <div class="row mb-3">
-                                    <label class="text-end col-sm-7" for="blackLevel">Black Level</label>
+                                    <label class="text-end col-sm-7" for="debayeringAlgorithm">Debayering Algorithm</label>
                                     <div class="col-sm-5">
-                                        <input type="number" class="form-control form-control-sm" id="blackLevel" bind:value={options.blackLevel} step="1" on:change={renderPreview} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-sm-6 col-md-3">
-                                <div class="row mb-3">
-                                    <label class="text-end col-sm-7" for="whiteLevel">White Level</label>
-                                    <div class="col-sm-5">
-                                        <input type="number" class="form-control form-control-sm" id="whiteLevel" bind:value={options.whiteLevel} step="1" on:change={renderPreview} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-sm-6 col-md-3">
-                                <div class="row mb-3">
-                                    <label class="text-end col-sm-7" for="rWB">White Balance: Red</label>
-                                    <div class="col-sm-5">
-                                        <input type="number" class="form-control form-control-sm" id="rWB" bind:value={options.rWB} step="0.0001" on:change={renderPreview} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-sm-6 col-md-3">
-                                <div class="row mb-3">
-                                    <label class="text-end col-sm-7" for="bWB">White Balance: Blue</label>
-                                    <div class="col-sm-5">
-                                        <input type="number" class="form-control form-control-sm" id="bWB" bind:value={options.bWB} step="0.0001" on:change={renderPreview} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-sm-6 col-md-3">
-                                <div class="row mb-3">
-                                    <label class="text-end col-sm-7" for="overexposureInStops">Overexposure in Stops</label>
-                                    <div class="col-sm-5">
-                                        <input type="number" class="form-control form-control-sm" id="overexposureInStops" bind:value={options.overexposureInStops} step="0.1" on:change={renderPreview} />
+                                        <select class="form-select form-select-sm" id="debayeringAlgorithm" bind:value={options.debayeringAlgorithm} on:change={() => renderPreview(true)}>
+                                            <option value="libraw">LibRaw</option>
+                                            <option value="custom">Custom</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -146,10 +120,60 @@
                                 <div class="row mb-3">
                                     <label class="text-end col-sm-7" for="rotate">Rotate</label>
                                     <div class="col-sm-5">
-                                        <select class="form-select form-select-sm" id="rotate" bind:value={options.rotate} on:change={renderPreview}>
+                                        <select class="form-select form-select-sm" id="rotate" bind:value={options.rotate} on:change={() => renderPreview(options?.debayeringAlgorithm == "libraw")}>
                                             <option value={0}>0°</option>
                                             <option value={180}>180°</option>
                                         </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <div class="row mb-3">
+                                    <label class="text-end col-sm-7" for="scene">Scene</label>
+                                    <div class="col-sm-5">
+                                        <input type="text" class="form-control form-control-sm" id="scene" bind:value={options.scene} />
+                                    </div>
+                                </div>
+                            </div>
+                            {#if options.debayeringAlgorithm === "custom"}
+                                <div class="col-12 col-sm-6 col-md-3">
+                                    <div class="row mb-3">
+                                        <label class="text-end col-sm-7" for="blackLevel">Black Level</label>
+                                        <div class="col-sm-5">
+                                            <input type="number" class="form-control form-control-sm" id="blackLevel" bind:value={options.blackLevel} step="1" on:change={() => renderPreview(false)} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-6 col-md-3">
+                                    <div class="row mb-3">
+                                        <label class="text-end col-sm-7" for="whiteLevel">White Level</label>
+                                        <div class="col-sm-5">
+                                            <input type="number" class="form-control form-control-sm" id="whiteLevel" bind:value={options.whiteLevel} step="1" on:change={() => renderPreview(false)} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-6 col-md-3">
+                                    <div class="row mb-3">
+                                        <label class="text-end col-sm-7" for="rWB">White Balance: Red</label>
+                                        <div class="col-sm-5">
+                                            <input type="number" class="form-control form-control-sm" id="rWB" bind:value={options.rWB} step="0.0001" on:change={() => renderPreview(false)} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-sm-6 col-md-3">
+                                    <div class="row mb-3">
+                                        <label class="text-end col-sm-7" for="bWB">White Balance: Blue</label>
+                                        <div class="col-sm-5">
+                                            <input type="number" class="form-control form-control-sm" id="bWB" bind:value={options.bWB} step="0.0001" on:change={() => renderPreview(false)} />
+                                        </div>
+                                    </div>
+                                </div>
+                            {/if}
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <div class="row mb-3">
+                                    <label class="text-end col-sm-7" for="overexposureInStops">Overexposure in Stops</label>
+                                    <div class="col-sm-5">
+                                        <input type="number" class="form-control form-control-sm" id="overexposureInStops" bind:value={options.overexposureInStops} step="0.1" on:change={() => renderPreview(false)} />
                                     </div>
                                 </div>
                             </div>
