@@ -138,6 +138,16 @@ export function getTitle(options: Options) {
 }
 
 export function toSafeFilename(text: string) {
+    const knownUmlauts = {
+        ä: "ae",
+        ö: "oe",
+        ü: "ue",
+        ß: "ss",
+        Ä: "Ae",
+        Ö: "Oe",
+        Ü: "Ue",
+    };
+    text = text.replace(new RegExp(Object.keys(knownUmlauts).join("|"), "g"), (match) => knownUmlauts[match as keyof typeof knownUmlauts] || match);
     return text.replace(/[^a-zA-Z0-9-_]/g, "_").replace(/_+/g, "_");
 }
 
