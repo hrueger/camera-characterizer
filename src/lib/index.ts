@@ -201,12 +201,12 @@ export function getMeanValues(options: { rgbNormalizedWB: Float32Array<ArrayBuff
         throw new Error("Failed to get canvas context for debug canvas");
     }
     ctxDebug.clearRect(0, 0, canvasDebug.width, canvasDebug.height);
-    for (let i = 0; i < SQUARES_X; i++) {
-        for (let j = 0; j < SQUARES_Y; j++) {
-            const mean = meanValues[i * SQUARES_Y + j];
+    for (let x = 0; x < SQUARES_X; x++) {
+        for (let y = 0; y < SQUARES_Y; y++) {
+            const mean = meanValues[y * SQUARES_X + x];
             const values = [mean.r, mean.g, mean.b].map((v) => Math.round(linearFloat2sRGBFloatValue(overexposeValue(v, options.overexposureInStops)) * 255));
             ctxDebug.fillStyle = `rgb(${values.join(", ")})`;
-            ctxDebug.fillRect(i * squareWidth, j * squareHeight, squareWidth, squareHeight);
+            ctxDebug.fillRect(x * squareWidth, y * squareHeight, squareWidth, squareHeight);
         }
     }
     return meanValues;
