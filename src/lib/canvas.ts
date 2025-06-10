@@ -25,8 +25,9 @@ export function drawToCanvas(canvas: HTMLCanvasElement, width: number, height: n
             rgba[j + 3] = data[i * 4 + 3];
         }
     }
-    const imageDataObj = new ImageData(rgba, width, height);
-    ctx.putImageData(imageDataObj, 0, 0);
+    const imageData = new ImageData(rgba, width, height);
+    ctx.putImageData(imageData, 0, 0);
+    return { imageData };
 }
 
 export function drawRectangle(ctx: CanvasRenderingContext2D, topLeft: [number, number], bottomRight: [number, number]) {
@@ -35,13 +36,12 @@ export function drawRectangle(ctx: CanvasRenderingContext2D, topLeft: [number, n
     ctx.strokeRect(topLeft[0], topLeft[1], bottomRight[0] - topLeft[0], bottomRight[1] - topLeft[1]);
 }
 
-export function logCanvasPixelPosition(event: MouseEvent) {
-    // log which canvas pixel was clicked, can be scaled
+export function getMousePosition(event: MouseEvent): [number, number] {
     const canvas = event.currentTarget as HTMLCanvasElement;
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor((event.clientX - rect.left) * (canvas.width / rect.width));
     const y = Math.floor((event.clientY - rect.top) * (canvas.height / rect.height));
-    console.log(`Canvas pixel position: (${x}, ${y})`);
+    return [x, y];
 }
 
 export type CCDrawingMode = "6x4" | "24x1";
