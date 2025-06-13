@@ -121,12 +121,9 @@ export async function calculateMatrix(options: { rgbNormalizedWB: Float32Array<A
     }
 
     const M_Filmlight = M_Normalized.transpose();
-
-    const renderedTemplate = renderFLSpaceTemplate(M_Filmlight, getTitle(options.options));
-
     const ccCalculated = ccMeasured.mmul(M);
     return {
-        renderedTemplate,
+        resultMatrix: M_Filmlight,
         ccMeasured,
         ccRef,
         ccCalculated,

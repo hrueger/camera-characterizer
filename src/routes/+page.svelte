@@ -274,7 +274,7 @@
             {#if resultMatrixes}
                 <div class="card mb-3 p-3">
                     <div class="mb-2 fw-bold">Baselight Colorspace Export</div>
-                    <button class="btn btn-outline-primary btn-sm mb-2" on:click={() => downloadFLSpace({ renderedTemplate: required(resultMatrixes).renderedTemplate }, toSafeFilename(getTitle(required(options))))}>Download .flspace File</button>
+                    <button class="btn btn-outline-primary btn-sm mb-2" on:click={() => downloadFLSpace({ resultMatrixes, options }, toSafeFilename(getTitle(required(options))))}>Download .flspace File</button>
                 </div>
             {/if}
         </div>

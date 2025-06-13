@@ -1,9 +1,14 @@
+import { getTitle } from "$lib";
 import flspaceTemplate from "$lib/template.flspace.mustache?raw";
 import type Matrix from "ml-matrix";
 import Mustache from "mustache";
 
-export function downloadFLSpace(options: { renderedTemplate: string }, title: string) {
-    const blob = new Blob([options.renderedTemplate], { type: "text/plain" });
+export function downloadFLSpace(options: { resultMatrixes?: { resultMatrix: Matrix }; options?: Parameters<typeof getTitle>[0] }, title: string) {
+    if (!options.resultMatrixes?.resultMatrix || !options.options) {
+        throw new Error("Missing data");
+    }
+    const rendered = renderFLSpaceTemplate(options.resultMatrixes.resultMatrix, getTitle(options.options));
+    const blob = new Blob([rendered], { type: "text/plain" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${title}.flspace`;
